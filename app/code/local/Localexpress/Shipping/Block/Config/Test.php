@@ -13,8 +13,11 @@ class Localexpress_Shipping_Block_Config_Test extends Mage_Adminhtml_Block_Syste
 
       $dim = $helper->buildDimensions(1,1,1);
       $addr_from = Localexpress_Shipping_Helper_Data::getAddressOrigin();
-
+      if (!extension_loaded('simplexml')) {
+        return "SimpleXML module is mandatory and is not installed on this server";
+      }
       $xml = $helper->shipmentGeo("NL", "The Netherlands", "Vijzelstraat 68", "1017HL", "Localexpress", "Amsterdam");
+
       if(empty($xml['house_number']))
          return "No valid GEO server";
       $json = $helper->addressSplitter("NL", "Randstad 21 33", "1314BG");
