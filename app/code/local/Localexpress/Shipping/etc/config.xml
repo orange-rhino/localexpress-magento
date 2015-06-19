@@ -2,7 +2,7 @@
 <config>
   <modules>
     <Localexpress_Shipping>
-      <version>0.2.1</version>
+      <version>0.2.3</version>
     </Localexpress_Shipping>
   </modules>
   <global>
@@ -39,7 +39,7 @@
       <sales_model_service_quote_submit_success>
         <observers>
           <localexpress_shipping>
-            <class>skepr_shipping/observer</class>
+            <class>localexpress_shipping/observer</class>
             <method>salesModelServiceQuoteSubmitSuccess</method>
           </localexpress_shipping>
         </observers>

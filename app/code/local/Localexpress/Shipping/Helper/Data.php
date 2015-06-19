@@ -3,7 +3,7 @@
 class Localexpress_Shipping_Helper_Data extends Mage_Core_Helper_Abstract
 {
   const NAME = "localexpress_customrate";
-  const SERVER = "localexpress-shipping(0.2.2)";
+  const SERVER = "localexpress-shipping(0.2.3)";
   const SERVICE_NAME = "localexpress_service";
   const DEBUG = false;
 
@@ -159,7 +159,7 @@ class Localexpress_Shipping_Helper_Data extends Mage_Core_Helper_Abstract
     if(!$subThoroughfare)
     {
        self::log("buildAddress  based on nomi\n\n");
-       $address_formatted = self::geoAddress($country_iso_2, $country_name, $street, $postal_code, $recipient, $city);  
+       $address_formatted = self::shipmentGeo($country_iso_2, $country_name, $street, $postal_code, $recipient, $city);  
        $street = $address_formatted['road'];
        self::log($address_formatted);
        $subThoroughfare    = $address_formatted['house_number'];
@@ -193,8 +193,12 @@ class Localexpress_Shipping_Helper_Data extends Mage_Core_Helper_Abstract
     return $address;
   }
 
-  public function shipmentGeo($country_iso_2, $country_name, $street, $postal_code, $recipient, $city){
-     return self::geoAddress($country_iso_2, $country_name, $street, $postal_code, $recipient, $city);
+  public function shipmentGeo($country_iso_2, $country_name, $street, $postal_code, $recipient, $city){  
+     $return = self::geoAddress($country_iso_2, $country_name, $street, $postal_code, $recipient, $city);
+     if(!empty($return['road']) && empty($return['house_number']))
+        $return['house_number'] = trim(str_replace($return['road'],"",$street));
+       
+     return $return;
   }
 
    public function shipmentQuote($quantity, $weight, $price, $currency, array $dimensions, array $origin, array $destination, $comment, $insurance)
@@ -247,7 +251,6 @@ class Localexpress_Shipping_Helper_Data extends Mage_Core_Helper_Abstract
   { 
     $fields = Mage::getStoreConfig('carriers/' . self::NAME);
     $geo    = $fields["geo_server"];
-
     if($geo)
     {
        $xml    = simplexml_load_file($geo."/search/$street,$postal_code,$city $country_name?format=xml&polygon=1&addressdetails=1");
@@ -268,15 +271,16 @@ class Localexpress_Shipping_Helper_Data extends Mage_Core_Helper_Abstract
 
     // unable to provide value
     $json[$arr_name] = array(
-      "quantity"  => $quantity,
-      "comments"  => $comment,
-      "value"     => (int)ceil($price),
-      "price"     => $price,
-      "weight"    => $weight,
-      "insurance" => $insurance,
-      "dimensions" => $dimensions,
-      "origin"    => $origin,
-      "destination" => $destination);
+      "quantity"        => $quantity,
+      "comments"        => $comment,
+      "value"           => (int)ceil($price),
+      "price"           => $price,
+      "weight"          => $weight,
+      "insurance"       => $insurance,
+      "dimensions"      => $dimensions,
+      "originates_from" => "plugin/magento",
+      "origin"          => $origin,
+      "destination"     => $destination);
     $json = json_encode($json);
     $shipment_quote = self::request($url . "/" . $target, $json, null, $apikey);       
     
