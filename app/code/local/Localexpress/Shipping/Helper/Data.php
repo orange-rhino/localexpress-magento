@@ -158,7 +158,6 @@ class Localexpress_Shipping_Helper_Data extends Mage_Core_Helper_Abstract
     }
     if(!$subThoroughfare)
     {
-       self::log("buildAddress  based on nomi\n\n");
        $address_formatted = self::shipmentGeo($country_iso_2, $country_name, $street, $postal_code, $recipient, $city);  
        $street = $address_formatted['road'];
        self::log($address_formatted);
@@ -193,22 +192,34 @@ class Localexpress_Shipping_Helper_Data extends Mage_Core_Helper_Abstract
     return $address;
   }
 
-  public function shipmentGeo($country_iso_2, $country_name, $street, $postal_code, $recipient, $city){  
-     $return = self::geoAddress($country_iso_2, $country_name, $street, $postal_code, $recipient, $city);
-     if(!empty($return['road']) && empty($return['house_number']))
-        $return['house_number'] = trim(str_replace($return['road'],"",$street));
-       
-     return $return;
+  public function shipmentGeo($country_iso_2, $country_name, $street, $postal_code, $recipient, $city){
+      $return = self::addressSplitter($country_iso_2,$street,$postal_code);
+      self::log("buildAddress  based on API\n\n");
+      self::log($return["result"]);
+
+      if(!empty($return["result"])){
+
+         $result = json_encode($return["result"]);
+         $return['house_number'] = $result->subThoroughfare;
+         $return['road']         = $result->thoroughfare;
+      }
+      if(empty($return['road']) && empty($return['house_number'])){
+         self::log("buildAddress  based on nomi\n\n");
+         $return = self::geoAddress($country_iso_2, $country_name, $street, $postal_code, $recipient, $city);
+         if(!empty($return['road']) && empty($return['house_number']))
+            $return['house_number'] = trim(str_replace($return['road'],"",$street));
+      }
+      return $return;
   }
 
-   public function shipmentQuote($quantity, $weight, $price, $currency, array $dimensions, array $origin, array $destination, $comment, $insurance)
+   public function shipmentQuote($quantity, $weight, $price, $currency, array $dimensions, array $origin, array $destination, $comment, $insurance,$human_id =false)
   {
-    return $this->shipmentHelper("shipment_quotes", $quantity, $weight, $price, $currency, $dimensions, $origin, $destination, $comment, $insurance,"shipment_quote");
+    return $this->shipmentHelper("shipment_quotes", $quantity, $weight, $price, $currency, $dimensions, $origin, $destination, $comment, $insurance,"shipment_quote",$human_id);
   }
 
-  public function shipment($quantity, $weight, $price, $currency, array $dimensions, array $origin, array $destination, $comment, $insurance)
+  public function shipment($quantity, $weight, $price, $currency, array $dimensions, array $origin, array $destination, $comment, $insurance,$human_id=false)
   {
-    return $this->shipmentHelper("shipments", $quantity, $weight, $price, $currency, $dimensions, $origin, $destination, $comment, $insurance);
+    return $this->shipmentHelper("shipments", $quantity, $weight, $price, $currency, $dimensions, $origin, $destination, $comment, $insurance,"shipment",$human_id);
   }
 
   public static function getItemQtys(Mage_Sales_Model_Order $order)
@@ -230,20 +241,21 @@ class Localexpress_Shipping_Helper_Data extends Mage_Core_Helper_Abstract
   
   public function addressSplitter($country_iso_2,$address,$postal_code,$debug=false){
       $fields  = Mage::getStoreConfig('carriers/' . self::NAME);
-      $geo     = $fields["address_server"];
-      $ch      = curl_init($url."convert_address.php");     
+      $ch      = curl_init($fields["address_server"]."/convert_address.php");     
+
+      $post = json_encode(array("postal_code" => $postal_code,"address"=> $address,"iso_country_code"=> $country_iso_2));
+      
       curl_setopt($ch, CURLOPT_RETURNTRANSFER,true);
       curl_setopt($ch, CURLOPT_SSL_VERIFYPEER,false);
       curl_setopt($ch, CURLOPT_POST, 1);
-      curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(array("postal_code" => $postal_code,"address"=> $address,"iso_country_code"=> $country_iso_2)));
-      if($debug==true){
-         curl_setopt($ch, CURLINFO_HEADER_OUT, 1);
-      }
+      curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
+      self::log("server: ".$fields["address_server"]."/convert_address.php");
+      self::log("post: ".$post);
+      self::log(array("postal_code" => $postal_code,"address"=> $address,"iso_country_code"=> $country_iso_2));
+
       $result = curl_exec($ch);
       $info = curl_getinfo($ch);
-      if($debug==true)
-         print_r($info);
-      curl_close($ch);
+      self::log($result);
       return array("info" => $info,"result" => $result);
   }
 
@@ -264,13 +276,14 @@ class Localexpress_Shipping_Helper_Data extends Mage_Core_Helper_Abstract
   }
 
   // create shipment
-  private function shipmentHelper($target, $quantity, $weight, $price, $currency, array $dimensions, array $origin, array $destination, $comment, $insurance,$arr_name='shipment')
+  private function shipmentHelper($target, $quantity, $weight, $price, $currency, array $dimensions, array $origin, array $destination, $comment, $insurance,$arr_name='shipment',$human_id)
   {
     $apikey = $this->_fields["api_key"];
     $url    = $this->_fields["server"];
 
     // unable to provide value
     $json[$arr_name] = array(
+      "human_id"        => $human_id,
       "quantity"        => $quantity,
       "comments"        => $comment,
       "value"           => (int)ceil($price),

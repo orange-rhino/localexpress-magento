@@ -78,9 +78,12 @@ class Localexpress_Shipping_Model_Observer
         $street, $zip, $firstname . " " . $lastname, $city);
       $comment = "Creating shipment";
       $insurance = false;
+      
+      $tmpShipment = Mage::getModel('sales/service_order', $order);
+      
       // create shipment
       $shipment_resp = $helper->shipment($order_info["qty"], $order_info["weight"], $order_info["price"], 
-        $currency, $dim, $addr_origin, $addr_dest, $comment, $insurance);
+        $currency, $dim, $addr_origin, $addr_dest, $comment, $insurance,$tmpShipment->getData('number'));
       $shipment_resp = $shipment_resp["body"]->shipment;
       // create magento shipment
       $track_data = array(

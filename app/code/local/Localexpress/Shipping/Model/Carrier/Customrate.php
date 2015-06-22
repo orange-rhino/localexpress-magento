@@ -19,6 +19,7 @@ class Localexpress_Shipping_Model_Carrier_Customrate extends Mage_Shipping_Model
       }
       // return 
       $result = Mage::getModel('shipping/rate_result');
+      $human_id = Mage::getSingleton('checkout/session')->getData('localexpress_shipping_human_id');
       // collect order information
       $quote = Mage::getSingleton('checkout/session')->getQuote();
       $firstname = $quote->getShippingAddress()->getFirstname();
@@ -42,11 +43,12 @@ class Localexpress_Shipping_Model_Carrier_Customrate extends Mage_Shipping_Model
       $dimensions = Localexpress_Shipping_Helper_Data::buildDimensions(1, 1, 1);
       // request quote
       $quote = $helper->shipmentQuote($order_info["qty"], $order_info["weight"], $order_info["price"], $store_currency, 
-        $dimensions, $addr_origin, $addr_dest, "Quote request!", false);
+        $dimensions, $addr_origin, $addr_dest, "Quote request!", false, $human_id);
       // invalid server response
       if($quote["info"]["http_code"] != 201 && $quote["info"]["http_code"] != 200)
         return false;
       // list details
+      $human_id = Mage::getSingleton('checkout/session')->setData('localexpress_shipping_human_id',$quote['body']->shipment_quote->human_id);
 
 
       $carrier_name = $fields["title"];
