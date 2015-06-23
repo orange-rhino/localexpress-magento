@@ -42,6 +42,10 @@ class Localexpress_Shipping_Model_Carrier_Customrate extends Mage_Shipping_Model
       //TODO: demension attribute!!
       $dimensions = Localexpress_Shipping_Helper_Data::buildDimensions(1, 1, 1);
       // request quote
+      $available = $helper->shipmentAvailable($country_iso639_2, $address, $zip);
+      if(!$available)
+        return false;
+      
       $quote = $helper->shipmentQuote($order_info["qty"], $order_info["weight"], $order_info["price"], $store_currency, 
         $dimensions, $addr_origin, $addr_dest, "Quote request!", false, $human_id);
       // invalid server response

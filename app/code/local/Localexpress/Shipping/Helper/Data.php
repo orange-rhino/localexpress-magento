@@ -3,7 +3,7 @@
 class Localexpress_Shipping_Helper_Data extends Mage_Core_Helper_Abstract
 {
   const NAME = "localexpress_customrate";
-  const SERVER = "localexpress-shipping(0.2.3)";
+  const SERVER = "localexpress-shipping(0.2.4)";
   const SERVICE_NAME = "localexpress_service";
   const DEBUG = false;
 
@@ -220,6 +220,38 @@ class Localexpress_Shipping_Helper_Data extends Mage_Core_Helper_Abstract
   public function shipment($quantity, $weight, $price, $currency, array $dimensions, array $origin, array $destination, $comment, $insurance,$human_id=false)
   {
     return $this->shipmentHelper("shipments", $quantity, $weight, $price, $currency, $dimensions, $origin, $destination, $comment, $insurance,"shipment",$human_id);
+  }
+  public function shipmentAvailable($country_iso_2, $address,$zip)
+  {
+      self::log("shipmentAvailable  \n\n");
+      self::log($country_iso_2." ".$address." ".$zip);
+
+      $api_boxture   = $this->addressSplitter($country_iso_2,$address,$zip);
+      self::log("shipmentAvailable result:  \n");
+   
+      self::log($api_boxture['result']);
+
+      $json_boxture  = json_decode($api_boxture['result'],true);
+   
+      if(empty($json_boxture['lat']))
+         return false;
+      
+      $fields     = Mage::getStoreConfig('carriers/' . self::NAME);
+      $ch         = curl_init($fields["server"]."/available_features?latitude=".$json_boxture['lat']."&purpose=dropoff&longitude=".$json_boxture['lon']);
+      curl_setopt($ch, CURLOPT_RETURNTRANSFER,true);
+      curl_setopt($ch, CURLOPT_SSL_VERIFYPEER,false);
+      curl_setopt($ch, CURLOPT_HTTPHEADER,array(
+             'Content-Type: application/json',
+             'Accept-Language: en',
+             'Connection: Keep-Alive',
+             'Authorization: Boxture '.$fields['api_key']));
+      $result = curl_exec($ch);
+      $info = curl_getinfo($ch);
+      curl_close($ch);
+      if($info['http_code']=='404' || $info['http_code']=='422')
+         return false;
+      else
+         return true;
   }
 
   public static function getItemQtys(Mage_Sales_Model_Order $order)
